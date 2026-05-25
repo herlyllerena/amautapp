@@ -895,6 +895,56 @@ ESTILO DE RESPUESTA:
     "Explícame el Protocolo de Crisis",
   ];
 
+  return (
+    <div className="screen">
+      <div className="sec-header">
+        <div className="sec-eyebrow">Amautu · IA del Código Tawantin</div>
+        <div className="sec-title">El sabio que<br/>acompaña el tejido</div>
+      </div>
+
+      {messages.length === 1 && (
+        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+          {suggestions.map(s => (
+            <button key={s} onClick={() => setInput(s)}
+              style={{ padding:"7px 12px", borderRadius:20, fontSize:12,
+                background:"rgba(200,134,10,0.08)", border:"1px solid rgba(200,134,10,0.2)",
+                color:"var(--gold)", cursor:"pointer", fontFamily:"'Jost',sans-serif" }}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="chat-history">
+        {messages.map((m, i) => (
+          <div key={i} className={`msg ${m.role}`}>
+            {m.role === "ai" && <div className="msg-label">Amautu</div>}
+            <div style={{ whiteSpace:"pre-wrap" }}>{m.text}</div>
+          </div>
+        ))}
+        {loading && (
+          <div className="msg ai">
+            <div className="msg-label">Amautu</div>
+            <div className="typing"><span/><span/><span/></div>
+          </div>
+        )}
+        <div ref={endRef}/>
+      </div>
+
+      <div className="chat-input-row">
+        <input className="chat-input" value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key==="Enter" && !e.shiftKey && send()}
+          placeholder="Pregunta al Amautu..."
+          disabled={loading}/>
+        <button className="chat-send" onClick={send} disabled={loading||!input.trim()}>
+          ↑
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function AmautApp() {
   const [tab, setTab] = useState("home");
