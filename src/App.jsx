@@ -818,7 +818,6 @@ ESTILO DE RESPUESTA:
   setLoading(false);
 }
     }
-  }
 
   const suggestions = [
     "¿Qué es el sufijo -ntin?",
