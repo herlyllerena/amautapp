@@ -800,85 +800,29 @@ function AmautuScreen({ perfil }) {
   async function send() {
     if (!input.trim() || loading) return;
 
-    const userMsg = input.trim();
+    const inputTexto = input.trim();
     setInput("");
     setLoading(true);
-
-    const updatedMessages = [...messages, { role: "user", text: userMsg }];
-    setMessages(updatedMessages);
-
-    const conversationHistory = updatedMessages
-      .filter(m => m.role === "user" || m.role === "ai")
-      .map(m => ({
-        role: m.role === "ai" ? "assistant" : "user",
-        content: m.text
-      }));
-
-    const payload = {
-      message: userMsg,
-      conversation_history: conversationHistory,
-      perfil: perfil || null,
-      perfil_nombre: perfilNombre || null,
-      perfil_quechua: perfilQuechua || null,
-      timestamp: new Date().toISOString(),
-      app: "AmautApp",
-      version: "1.0",
-      system_prompt: buildSystemPrompt(),
-    };
+    setMessages(m => [...m, { role: "user", text: inputTexto }]);
 
     try {
       const response = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: inputTexto }),
       });
 
       if (!response.ok) {
-        throw new Error(`Webhook error: ${response.status}`);
+        throw new Error("Error " + response.status);
       }
 
-      // Make.com returns the AI response
-      // Supports both plain text and JSON response formats
-      const contentType = response.headers.get("content-type") || "";
-      let aiText = "";
-
-      if (contentType.includes("application/json")) {
-        const data = await response.json();
-        // Handle different possible JSON structures from Make.com
-        aiText =
-          data.response ||
-          data.message ||
-          data.text ||
-          data.output ||
-          data.content ||
-          (data.choices && data.choices[0]?.message?.content) ||
-          (typeof data === "string" ? data : JSON.stringify(data));
-      } else {
-        // Plain text response
-        aiText = await response.text();
-      }
-
-      if (!aiText || aiText.trim() === "") {
-        aiText = "El Amautu recibió tu mensaje pero no pudo generar una respuesta. Inténtalo de nuevo.";
-      }
-
-      setMessages(m => [...m, { role: "ai", text: aiText.trim() }]);
+      const data = await response.json();
+      const aiText = data.reply || "El Amautu no pudo generar una respuesta. Inténtalo de nuevo.";
+      setMessages(m => [...m, { role: "ai", text: aiText }]);
 
     } catch (e) {
       console.error("Amautu webhook error:", e);
-
-      let errorMsg = "Hubo un error de conexión con el Amautu.";
-      if (e.message.includes("Failed to fetch") || e.message.includes("NetworkError")) {
-        errorMsg = "No hay conexión con el servidor. Verifica tu internet e inténtalo de nuevo.";
-      } else if (e.message.includes("Webhook error: 4")) {
-        errorMsg = "El webhook de Make.com reportó un error. Verifica la configuración del escenario.";
-      } else if (e.message.includes("Webhook error: 5")) {
-        errorMsg = "El servidor de Make.com está temporalmente no disponible. Inténtalo en unos minutos.";
-      }
-
-      setMessages(m => [...m, { role: "ai", text: errorMsg }]);
+      setMessages(m => [...m, { role: "ai", text: "Hubo un error de conexión con el Amautu. Inténtalo de nuevo." }]);
     } finally {
       setLoading(false);
     }
