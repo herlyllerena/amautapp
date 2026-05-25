@@ -796,29 +796,27 @@ ESTILO DE RESPUESTA:
 - Mantén el tono cálido del Amautu: ni condescendiente ni excesivamente formal`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          system: systemPrompt,
-          messages: [
-            ...messages.filter(m=>m.role==="user"||m.role==="assistant").map(m=>({
-              role: m.role==="ai"?"assistant":m.role,
-              content: m.text
-            })),
-            { role:"user", content:userMsg }
-          ]
-        })
-      });
-      const data = await response.json();
-      const aiText = data.content?.find(b=>b.type==="text")?.text || "No pude procesar esa consulta. Inténtalo de nuevo.";
-      setMessages(m => [...m, { role:"ai", text:aiText }]);
-    } catch(e) {
-      setMessages(m => [...m, { role:"ai", text:"Hubo un error de conexión. El Amautu está temporalmente fuera de línea." }]);
-    } finally {
-      setLoading(false);
+  const response = await fetch("https://hook.us2.make.com/gnntvqqskg6b7y8n8kmlsrvm8qiv77am", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: messages.filter(m => m.role === "user" || m.role === "assistant").map(m => ({
+        role: m.role === "ai" ? "assistant" : m.role,
+        content: m.text
+      })),
+      userMsg: userMsg
+    })
+  });
+  
+  // Aquí esperamos la respuesta que venga de Make.com
+  const data = await response.json();
+  const aiText = data.reply || "No pude obtener una respuesta.";
+  setMessages(m => [...m, { role: "ai", text: aiText }]);
+} catch(e) {
+  setMessages(m => [...m, { role: "ai", text: "Hubo un error de conexión con el cerebro del Amauta." }]);
+} finally {
+  setLoading(false);
+}
     }
   }
 
