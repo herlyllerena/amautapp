@@ -807,22 +807,21 @@ ESTILO DE RESPUESTA:
       userMsg: userMsg
     })
   });
-  
-  // Aquí esperamos la respuesta que venga de Make.com
-  const data = await response.json();
-  const aiText = data.reply || "No pude obtener una respuesta.";
-  setMessages(m => [...m, { role: "ai", text: aiText }]);
-} catch(e) {
-  setMessages(m => [...m, { role: "ai", text: "Hubo un error de conexión con el cerebro del Amauta." }]);
-} finally {
-  setLoading(false);
-}
-}
-  const suggestions = [
-    "¿Qué es el sufijo -ntin?",
-    "¿Cuál es mi práctica de hoy?",
-    "¿Cómo funciona la ANI?",
-    "Explícame el Protocolo de Crisis",
+  } catch(e) {
+    setMessages(m => [...m, { role: "ai", text: "Hubo un error de conexión con el cerebro del Amauta." }]);
+  } finally {
+    setLoading(false);
+  }
+} 
+
+const suggestions = [
+  "¿Qué es el sufijo -ntin?",
+  "¿Cuál es mi práctica de hoy?",
+  "¿Cómo funciona la ANI?",
+  "Explícame el Protocolo de Crisis",
+];
+
+return (
   ];
 
   return (
