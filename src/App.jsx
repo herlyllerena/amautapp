@@ -753,8 +753,13 @@ function GlosarioScreen() {
 }
 
 function AmautuScreen({ perfil }) {
+  const WEBHOOK_URL = "https://hook.us2.make.com/gnntvqqskg6b7y8n8kmlsrvm8qiv77am";
+
   const [messages, setMessages] = useState([
-    { role: "ai", text: "Hola Pururauca. Soy el Amautu, el asistente del Código Tawantin. ¿En qué puedo acompañar tu tejido hoy?" }
+    {
+      role: "ai",
+      text: "Hola Pururauca. Soy el Amautu, el asistente del Código Tawantin. Puedes preguntarme sobre las Formas de Kawsay, el significado de los términos andinos, cómo usar AmautApp, o explorar cualquier concepto del libro. ¿Por dónde comenzamos?"
+    }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -766,30 +771,118 @@ function AmautuScreen({ perfil }) {
 
   async function send() {
     if (!input.trim() || loading) return;
+
     const userMsg = input.trim();
     setInput("");
-    setMessages(m => [...m, { role: "user", text: userMsg }]);
     setLoading(true);
 
+    // Add user message to chat
+    const updatedMessages = [...messages, { role: "user", text: userMsg }];
+    setMessages(updatedMessages);
+
+    // Build conversation history for context
+    const conversationHistory = updatedMessages
+      .filter(m => m.role === "user" || m.role === "ai")
+      .map(m => ({
+        role: m.role === "ai" ? "assistant" : "user",
+        content: m.text
+      }));
+
+    // Build payload for Make.com webhook
+    const payload = {
+      // Current user message
+      message: userMsg,
+
+      // Full conversation history for context
+      conversation_history: conversationHistory,
+
+      // User profile context
+      perfil: perfil || null,
+      perfil_nombre: perfil ? (FORMAS.find(f => f.key === perfil)?.name || null) : null,
+      perfil_quechua: perfil ? (FORMAS.find(f => f.key === perfil)?.quechua || null) : null,
+
+      // Metadata
+      timestamp: new Date().toISOString(),
+      app: "AmautApp",
+      version: "1.0",
+
+      // System prompt for Claude (Make.com uses this to call the AI)
+      system_prompt: `Eres el Amautu, el asistente de inteligencia artificial del Código Tawantin y AmautApp, creados por Vidal Herly Llerena García. Tu rol es el de un sabio andino moderno que conoce profundamente el Código Tawantin.
+
+SOBRE EL CÓDIGO TAWANTIN:
+- Es un sistema de desarrollo humano que integra la cosmovisión andina, la Teoría Integral de Ken Wilber, neurociencia y filosofía comparada.
+- El mantra central es: Ayni · Yanantin · Masintin · Tawantin
+- Las 5 Formas de Kawsay son: Guerrero (Aucayoc), Guardián (Kamayoc), Descubridor (Hamutay), Guía (Pushac) y Maestro de Integración (Kuraq)
+- Los 4 cuadrantes del Tawantinsuyo: Sapa Ukhu (subjetivo), Sapa Hawa (objetivo), Tinkuy Yuyay (intersubjetivo), Lliu Hawa (interobjetivo)
+- El sufijo -ntin opera tanto para opuestos (Yanantin) como para semejantes (Masintin), distinguiéndolo del Yin-Yang
+- AmautApp incluye: Diagnóstico de Entrada, Registro del Amanecer (3 preguntas), 4 Misiones diarias, Registro del Atardecer (4 preguntas), Mantra, Protocolo de Crisis, Memoria Narrativa
+- La ANI (Actualización de Neurointeligencias) opera sobre 6 inteligencias: cognitiva, emocional, corporal, relacional, espiritual y naturalista
+- La escala Hawkins: el umbral 200 (Coraje) separa la Fuerza del Poder
+- El Pururauca es el nombre del usuario dentro del sistema
+${perfil ? `
+CONTEXTO DEL USUARIO: Forma de Kawsay predominante es ${FORMAS.find(f=>f.key===perfil)?.name} (${FORMAS.find(f=>f.key===perfil)?.quechua}).` : ""}
+
+ESTILO DE RESPUESTA:
+- Habla desde la sabiduría, no desde la información académica
+- Usa términos quechuas naturalmente, explicándolos cuando sea relevante
+- Sé conciso pero profundo. Máximo 3-4 párrafos salvo que la pregunta requiera más
+- Conecta siempre la respuesta con la práctica concreta en AmautApp cuando sea relevante
+- Mantén el tono cálido del Amautu: ni condescendiente ni excesivamente formal`
+    };
+
     try {
-      const response = await fetch("https://hook.us2.make.com/gnntvqqskg6b7y8n8kmlsrvm8qiv77am", {
+      const response = await fetch(WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: messages.filter(m => m.role === "user" || m.role === "assistant").map(m => ({
-            role: m.role === "ai" ? "assistant" : m.role,
-            content: m.text
-          })),
-          userMsg: userMsg,
-          context: perfil ? Perfil: ${perfil} : "Sin perfil"
-        })
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
       });
-      
-      const data = await response.json();
-      const aiText = data.reply || "No pude obtener una respuesta.";
-      setMessages(m => [...m, { role: "ai", text: aiText }]);
+
+      if (!response.ok) {
+        throw new Error(`Webhook error: ${response.status}`);
+      }
+
+      // Make.com returns the AI response
+      // Supports both plain text and JSON response formats
+      const contentType = response.headers.get("content-type") || "";
+      let aiText = "";
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        // Handle different possible JSON structures from Make.com
+        aiText =
+          data.response ||
+          data.message ||
+          data.text ||
+          data.output ||
+          data.content ||
+          (data.choices && data.choices[0]?.message?.content) ||
+          (typeof data === "string" ? data : JSON.stringify(data));
+      } else {
+        // Plain text response
+        aiText = await response.text();
+      }
+
+      if (!aiText || aiText.trim() === "") {
+        aiText = "El Amautu recibió tu mensaje pero no pudo generar una respuesta. Inténtalo de nuevo.";
+      }
+
+      setMessages(m => [...m, { role: "ai", text: aiText.trim() }]);
+
     } catch (e) {
-      setMessages(m => [...m, { role: "ai", text: "Hubo un error de conexión con el cerebro del Amauta." }]);
+      console.error("Amautu webhook error:", e);
+
+      let errorMsg = "Hubo un error de conexión con el Amautu.";
+      if (e.message.includes("Failed to fetch") || e.message.includes("NetworkError")) {
+        errorMsg = "No hay conexión con el servidor. Verifica tu internet e inténtalo de nuevo.";
+      } else if (e.message.includes("Webhook error: 4")) {
+        errorMsg = "El webhook de Make.com reportó un error. Verifica la configuración del escenario.";
+      } else if (e.message.includes("Webhook error: 5")) {
+        errorMsg = "El servidor de Make.com está temporalmente no disponible. Inténtalo en unos minutos.";
+      }
+
+      setMessages(m => [...m, { role: "ai", text: errorMsg }]);
     } finally {
       setLoading(false);
     }
@@ -802,55 +895,6 @@ function AmautuScreen({ perfil }) {
     "Explícame el Protocolo de Crisis",
   ];
 
-  return (
-    <div className="screen">
-      <div className="sec-header">
-        <div className="sec-eyebrow">Amautu · IA del Código Tawantin</div>
-        <div className="sec-title">El sabio que<br/>acompaña el tejido</div>
-      </div>
-
-      {messages.length === 1 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-          {suggestions.map(s => (
-            <button key={s} onClick={() => setInput(s)}
-              style={{ padding: "7px 12px", borderRadius: 20, fontSize: 12,
-                background: "rgba(200,134,10,0.08)", border: "1px solid rgba(200,134,10,0.2)",
-                color: "var(--gold)", cursor: "pointer", fontFamily: "'Jost',sans-serif" }}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="chat-history">
-        {messages.map((m, i) => (
-          <div key={i} className={msg ${m.role}}>
-            {m.role === "ai" && <div className="msg-label">Amautu</div>}
-            <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
-          </div>
-        ))}
-        {loading && (
-          <div className="msg ai">
-            <div className="msg-label">Amautu</div>
-            <div className="typing"><span /><span /><span /></div>
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      <div className="chat-input-row">
-        <input className="chat-input" value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-          placeholder="Pregunta al Amautu..."
-          disabled={loading} />
-        <button className="chat-send" onClick={send} disabled={loading || !input.trim()}>
-          ↑
-        </button>
-      </div>
-    </div>
-  );
-}
 // ── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function AmautApp() {
   const [tab, setTab] = useState("home");
