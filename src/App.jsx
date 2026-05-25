@@ -817,7 +817,7 @@ ESTILO DE RESPUESTA:
 } finally {
   setLoading(false);
 }
-    }
+}
   const suggestions = [
     "¿Qué es el sufijo -ntin?",
     "¿Cuál es mi práctica de hoy?",
